@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from .models import PostoTrabalho, Maquina, Operacao, Atividade, Tempos
 from .serializers import *
+from django.db.models import Prefetch
 
 class PostoTrabalhoViewSet(ViewSet):
     """
@@ -250,8 +251,11 @@ class OperacaoViewSet(ViewSet):
         )
 
 class AtividadeViewSet(ModelViewSet):
-    queryset = Atividade.objects.all()
+    queryset = Atividade.objects.prefetch_related(
+        Prefetch("tempos_set", queryset=Tempos.objects.select_related("operacao"))
+    ).select_related("posto_trabalho", "maquina")
     serializer_class = AtividadeSerializer
+   
 
    
     def create(self, request, *args, **kwargs):
@@ -311,6 +315,14 @@ class AtividadeViewSet(ModelViewSet):
         data = []
 
         for atividade in queryset:
+            tempos_data = [
+                {
+                    "operacao": tempo.operacao.nome,
+                    "tempo": tempo.tempo,
+                }
+                for tempo in atividade.tempos_set.all()
+            ]
+
             data.append({
                 "id": atividade.id,
                 "nome": atividade.nome,
@@ -319,7 +331,7 @@ class AtividadeViewSet(ModelViewSet):
                 "observacao": atividade.observacao,
                 "posto_trabalho": atividade.posto_trabalho.nome,
                 "maquina": atividade.maquina.nome,
-                "operacoes": [operacao.nome for operacao in atividade.operacoes.all()],
+                "tempos": tempos_data,
             })
 
         return Response(
