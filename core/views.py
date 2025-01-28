@@ -3,7 +3,8 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status
-from .models import PostoTrabalho, Maquina, Operacao, Atividade
+from rest_framework.exceptions import ValidationError
+from .models import PostoTrabalho, Maquina, Operacao, Atividade, Tempos
 from .serializers import *
 
 class PostoTrabalhoViewSet(ViewSet):
@@ -286,14 +287,19 @@ class AtividadeViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         atividade = serializer.save()
 
-        # Associar operações, se fornecidas
+        # Criar entradas no modelo Tempos para cada operação fornecida
         if "operacoes" in data:
             operacoes_ids = data["operacoes"]
-            try:
-                operacoes = Operacao.objects.filter(id__in=operacoes_ids)
-                atividade.operacoes.set(operacoes)
-            except Operacao.DoesNotExist:
-                return Response({"error": "Operação inválida."}, status=status.HTTP_400_BAD_REQUEST)
+            tempos = data["tempos"]
+            id = 0
+            for operacao_id in operacoes_ids:
+                tp_op = tempos[id]
+                try:
+                    operacao = Operacao.objects.get(id=operacao_id)
+                    Tempos.objects.create(atividade=atividade, operacao=operacao, tempo = tp_op)
+                    id = id+1
+                except Operacao.DoesNotExist:
+                    raise ValidationError({"operacoes": f"Operação inválida com ID {operacao_id}."})
 
         return Response(
             {"message": "Atividade criada com sucesso!", "data": serializer.data},

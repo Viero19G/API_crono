@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PostoTrabalho, Maquina, Operacao, Atividade
+from .models import PostoTrabalho, Maquina, Operacao, Atividade, Tempos
 
 class PostoTrabalhoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,20 +16,12 @@ class OperacaoSerializer(serializers.ModelSerializer):
         model = Operacao
         fields = '__all__'
 
-class AtividadeSerializer(serializers.ModelSerializer):
-    operacoes = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Operacao.objects.all(), required=False
-    )
-
+class TempoSerializer(serializers.ModelSerializer):
     class Meta:
+        model = Tempos
+        fields = '__all__'
+
+class AtividadeSerializer(serializers.ModelSerializer):
+     class Meta:
         model = Atividade
-        fields = [
-            "id",
-            "nome",
-            "data_hora_inicio",
-            "data_hora_fim",
-            "observacao",
-            "posto_trabalho",
-            "maquina",
-            "operacoes",
-        ]
+        fields = '__all__'

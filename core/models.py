@@ -26,7 +26,13 @@ class Atividade(models.Model):
     observacao = models.TextField(null=True, blank=True)
     posto_trabalho = models.ForeignKey(PostoTrabalho, on_delete=models.CASCADE)
     maquina = models.ForeignKey(Maquina, on_delete=models.CASCADE)
-    operacoes = models.ManyToManyField(Operacao, blank=True)  # Relação ManyToMany com Operacao
 
     def __str__(self):
         return self.nome
+
+class Tempos(models.Model):
+    tempo = models.PositiveBigIntegerField(blank=True, default=0)
+    atividade = models.ForeignKey(Atividade, on_delete=models.CASCADE)
+    operacao = models.ForeignKey(Operacao, on_delete=models.CASCADE)
+
+    
