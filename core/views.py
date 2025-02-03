@@ -36,7 +36,7 @@ class PostoTrabalhoViewSet(ViewSet):
         serializer.save()
 
         return Response(
-            {"message": "Posto de Trabalho criado com sucesso!", "data": serializer.data},
+            {"message": "Posto criado com sucesso!", "data": serializer.data},
             status=status.HTTP_201_CREATED
         )
 
@@ -198,7 +198,7 @@ class OperacaoViewSet(ViewSet):
         serializer.save()
 
         return Response(
-            {"message": "Maquina criada com sucesso!", "data": serializer.data},
+            {"message": "Operacao criada com sucesso!", "data": serializer.data},
             status=status.HTTP_201_CREATED
         )
 
@@ -223,7 +223,7 @@ class OperacaoViewSet(ViewSet):
                 {"error": f"Operacao com ID {pk} não encontrado."},
                 status=status.HTTP_404_NOT_FOUND
             )
-
+        
         serializer = OperacaoSerializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -255,8 +255,6 @@ class AtividadeViewSet(ModelViewSet):
         Prefetch("tempos_set", queryset=Tempos.objects.select_related("operacao"))
     ).select_related("posto_trabalho", "maquina")
     serializer_class = AtividadeSerializer
-   
-
    
     def create(self, request, *args, **kwargs):
         data = request.data

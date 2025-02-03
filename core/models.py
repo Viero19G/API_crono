@@ -34,5 +34,3 @@ class Tempos(models.Model):
     tempo = models.PositiveBigIntegerField(blank=True, default=0)
     atividade = models.ForeignKey(Atividade, on_delete=models.CASCADE)
     operacao = models.ForeignKey(Operacao, on_delete=models.CASCADE)
-
-    
