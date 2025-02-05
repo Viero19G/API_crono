@@ -21,11 +21,12 @@ class Operacao(models.Model):
 
 class Atividade(models.Model):
     nome = models.CharField(max_length=255, default='Atividade Padrão')
-    data_hora_inicio = models.DateTimeField()
-    data_hora_fim = models.DateTimeField()
+    data_hora_inicio = models.TextField()
+    data_hora_fim = models.TextField()
     observacao = models.TextField(null=True, blank=True)
     posto_trabalho = models.ForeignKey(PostoTrabalho, on_delete=models.CASCADE)
     maquina = models.ForeignKey(Maquina, on_delete=models.CASCADE)
+    tempo_total = models.BigIntegerField(blank=True, default=0)
 
     def __str__(self):
         return self.nome

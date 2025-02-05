@@ -7,6 +7,13 @@ from rest_framework.exceptions import ValidationError
 from .models import PostoTrabalho, Maquina, Operacao, Atividade, Tempos
 from .serializers import *
 from django.db.models import Prefetch
+import os
+import pandas as pd
+from io import BytesIO
+from django.http import HttpResponse
+from django.conf import settings
+
+EXCEL_DIR = r'\\192.168.1.28\robustecfs\PUBLICO\00-NOTIFICA\04-ENGENHARIA\CRONOANALISE'
 
 class PostoTrabalhoViewSet(ViewSet):
     """
@@ -260,7 +267,7 @@ class AtividadeViewSet(ModelViewSet):
         data = request.data
 
         # Validação de campos obrigatórios
-        required_fields = ["nome", "data_hora_inicio", "data_hora_fim", "posto_trabalho", "maquina"]
+        required_fields = ["nome", "data_hora_inicio", "data_hora_fim", "posto_trabalho", "maquina", "tempo_total"]
         for field in required_fields:
             if field not in data:
                 return Response(
@@ -268,12 +275,6 @@ class AtividadeViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        # Validar se data_hora_fim > data_hora_inicio
-        if data["data_hora_fim"] <= data["data_hora_inicio"]:
-            return Response(
-                {"error": "A 'data_hora_fim' deve ser posterior à 'data_hora_inicio'."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         # Validar se os IDs fornecidos existem
         try:
@@ -293,6 +294,7 @@ class AtividadeViewSet(ModelViewSet):
         if "operacoes" in data:
             operacoes_ids = data["operacoes"]
             tempos = data["tempos"]
+            tempos_data =  data["tempos"]
             id = 0
             for operacao_id in operacoes_ids:
                 tp_op = tempos[id]
@@ -302,9 +304,37 @@ class AtividadeViewSet(ModelViewSet):
                     id = id+1
                 except Operacao.DoesNotExist:
                     raise ValidationError({"operacoes": f"Operação inválida com ID {operacao_id}."})
+        
+       # Criar DataFrame para o Excel
+        df = pd.DataFrame([{
+           "id": atividade.id,
+                "nome": atividade.nome,
+                "data_hora_inicio": atividade.data_hora_inicio,
+                "data_hora_fim": atividade.data_hora_fim,
+                "observacao": atividade.observacao,
+                "posto_trabalho": atividade.posto_trabalho.nome,
+                "maquina": atividade.maquina.nome,
+                "tempos": tempos_data,
+                "tempo_total": atividade.tempo_total,
+        }])
+
+        # Criar DataFrame para os tempos das operações
+        df_tempos = pd.DataFrame(tempos_data)
+
+        # Criar diretório se não existir
+        if not os.path.exists(EXCEL_DIR):
+            os.makedirs(EXCEL_DIR)
+
+        # Criar o nome do arquivo
+        file_path = os.path.join(EXCEL_DIR, f"atividade_{atividade.id}.xlsx")
+
+        # Gerar o arquivo Excel e salvar
+        with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+            df.to_excel(writer, sheet_name="Atividade", index=False)
+            df_tempos.to_excel(writer, sheet_name="Tempos", index=False)
 
         return Response(
-            {"message": "Atividade criada com sucesso!", "data": serializer.data},
+            {"message": "Atividade criada com sucesso!"},
             status=status.HTTP_201_CREATED,
         )
 
@@ -330,6 +360,8 @@ class AtividadeViewSet(ModelViewSet):
                 "posto_trabalho": atividade.posto_trabalho.nome,
                 "maquina": atividade.maquina.nome,
                 "tempos": tempos_data,
+                "tempo_total": atividade.tempo_total,
+                
             })
 
         return Response(
