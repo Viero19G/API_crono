@@ -8,6 +8,8 @@ router.register('postos', PostoTrabalhoViewSet, basename='postos')
 router.register('maquinas', MaquinaViewSet, basename='maquinas')
 router.register('operacoes', OperacaoViewSet, basename='operacoes')
 router.register('atividades', AtividadeViewSet, basename='atividades')
+router.register('classificacoes', ClassificacaoViewSet, basename='classificacoes')
+
 
 urlpatterns = [
     path('', include(router.urls)),

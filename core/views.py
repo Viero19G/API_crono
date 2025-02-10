@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from .models import PostoTrabalho, Maquina, Operacao, Atividade, Tempos
+from django.shortcuts import get_object_or_404
 from .serializers import *
 from django.db.models import Prefetch
 import os
@@ -14,6 +15,89 @@ from django.http import HttpResponse
 from django.conf import settings
 
 EXCEL_DIR = r'\\192.168.1.28\robustecfs\PUBLICO\00-NOTIFICA\04-ENGENHARIA\CRONOANALISE'
+
+class ClassificacaoViewSet(ViewSet):
+    """
+    Custom ViewSet para manipularCLassificacao com endpoints específicos.
+    """
+
+    # POST personalizado em /api/classificacoes/postocreate/
+    @action(detail=False, methods=['post'], url_path='classificacaocreate')
+    def create_classificacao(self, request):
+        data = request.data
+
+        # Validação dos campos obrigatórios
+        if "nome" not in data:
+            return Response(
+                {"error": "Os campos 'nome'  é obrigatórios."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not data["nome"].strip():
+            return Response(
+                {"error": "O campo 'nome' não pode estar vazio."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = ClassificacaoSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {"message": "Classificacao criado com sucesso!", "data": serializer.data},
+            status=status.HTTP_201_CREATED
+        )
+
+    # GET personalizado em /api/postos/postolist/
+    @action(detail=False, methods=['get'], url_path='classificacaolist')
+    def list_classificacao(self, request):
+        queryset = Classificacao.objects.all()
+        serializer = ClassificacaoSerializer(queryset, many=True)
+
+        return Response(
+            {"message": "Lista de CLassificações", "data": serializer.data},
+            status=status.HTTP_200_OK
+        )
+
+    # PUT personalizado em /api/postos/postoupdate/<id>/
+    @action(detail=True, methods=['put'], url_path='classificacaoupdate')
+    def update_posto(self, request, pk=None):
+        try:
+            # Verifica se o objeto existe
+            instance = Classificacao.objects.get(pk=pk)
+        except Classificacao.DoesNotExist:
+            return Response(
+                {"error": f"Classificação com ID {pk} não encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Atualiza os dados com o serializer
+        serializer = ClassificacaoSerializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {"message": "Classificação atualizado com sucesso!", "data": serializer.data},
+            status=status.HTTP_200_OK
+        )
+
+    # DELETE personalizado em /api/postos/postodelete/<id>/
+    @action(detail=True, methods=['delete'], url_path='classificacaodelete')
+    def delete_posto(self, request, pk=None):
+        try:
+            instance = Classificacao.objects.get(pk=pk)
+        except Classificacao.DoesNotExist:
+            return Response(
+                {"error": f"Classificação com ID {pk} não encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        instance.delete()
+        return Response(
+            {"message": f"Classificação com ID {pk} deletado com sucesso."},
+            status=status.HTTP_200_OK
+        )
+
 
 class PostoTrabalhoViewSet(ViewSet):
     """
@@ -104,76 +188,81 @@ class MaquinaViewSet(ViewSet):
 
     # POST personalizado em /api/maquinas/maquinacreate/
     @action(detail=False, methods=['post'], url_path='maquinacreate')
-    def create_posto(self, request):
+    def create_maquina(self, request):
         data = request.data
-
-        # Validação dos campos obrigatórios
-        if "nome" not in data or "descricao" not in data:
-            return Response(
-                {"error": "Os campos 'nome' e 'descricao' são obrigatórios."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not data["nome"].strip():
-            return Response(
-                {"error": "O campo 'nome' não pode estar vazio."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        operacoes_ids = data.pop("operacoes", [])
 
         serializer = MaquinaSerializer(data=data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        maquina = serializer.save()
+
+        if operacoes_ids:
+            operacoes = Operacao.objects.filter(id__in=operacoes_ids)
+            maquina.operacoes.set(operacoes)  # Adiciona a relação ManyToMany
 
         return Response(
-            {"message": "Maquina criada com sucesso!", "data": serializer.data},
+            {"message": "Máquina criada com sucesso!", "data": MaquinaSerializer(maquina).data},
             status=status.HTTP_201_CREATED
         )
 
-    # GET personalizado em /api/maquinas/maquinalist/
-    @action(detail=False, methods=['get'], url_path='maquinalist')
-    def list_postos(self, request):
-        queryset = Maquina.objects.all()
-        serializer = MaquinaSerializer(queryset, many=True)
-
-        return Response(
-            {"message": "Lista de Maquinas de Trabalho", "data": serializer.data},
-            status=status.HTTP_200_OK
-        )
-
-    # PUT personalizado em /api/maquinas/maquinaupdate/<id>/
     @action(detail=True, methods=['put'], url_path='maquinaupdate')
-    def update_posto(self, request, pk=None):
+    def update_maquina(self, request, pk=None):
         try:
-            instance = Maquina.objects.get(pk=pk)
+            maquina = Maquina.objects.get(pk=pk)
         except Maquina.DoesNotExist:
             return Response(
-                {"error": f"Maquina com ID {pk} não encontrado."},
+                {"error": f"Máquina com ID {pk} não encontrada."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = MaquinaSerializer(instance, data=request.data)
+        data = request.data
+        operacoes_ids = data.pop("operacoes", [])
+
+        serializer = MaquinaSerializer(maquina, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        maquina = serializer.save()
+
+        if operacoes_ids:
+            operacoes = Operacao.objects.filter(id__in=operacoes_ids)
+            maquina.operacoes.set(operacoes)
 
         return Response(
-            {"message": f"Maquina com ID {pk} atualizado com sucesso!", "data": serializer.data},
+            {"message": f"Máquina com ID {pk} atualizada com sucesso!", "data": MaquinaSerializer(maquina).data},
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=False, methods=['get'], url_path='maquinas-operacoes')
+    def listar_maquinas_com_operacoes(self, request):
+        maquinas = Maquina.objects.prefetch_related("operacoes").all()
+        data = [
+            {
+                "id": maquina.id,
+                "nome": maquina.nome,
+                "descricao": maquina.descricao,
+                "operacoes": [{"id": op.id, "nome": op.nome} for op in maquina.operacoes.all()]
+            }
+            for maquina in maquinas
+        ]
+
+        return Response(
+            {"message": "Lista de Máquinas e suas Operações", "data": data},
             status=status.HTTP_200_OK
         )
 
     # DELETE personalizado em /api/maquinas/maquinadelete/<id>/
     @action(detail=True, methods=['delete'], url_path='maquinadelete')
-    def delete_posto(self, request, pk=None):
+    def delete_maquina(self, request, pk=None):
         try:
             instance = Maquina.objects.get(pk=pk)
         except Maquina.DoesNotExist:
             return Response(
-                {"error": f"Maquina  com ID {pk} não encontrado."},
+                {"error": f"Máquina com ID {pk} não encontrada."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
         instance.delete()
         return Response(
-            {"message": f"Maquina com ID {pk} deletado com sucesso."},
+            {"message": f"Máquina com ID {pk} excluída com sucesso."},
             status=status.HTTP_200_OK
         )
 
@@ -184,7 +273,7 @@ class OperacaoViewSet(ViewSet):
 
     # POST personalizado em /api/operacoes/operacaocreate/
     @action(detail=False, methods=['post'], url_path='operacaocreate')
-    def create_posto(self, request):
+    def create_operacao(self, request):
         data = request.data
 
         # Validação dos campos obrigatórios
@@ -211,7 +300,7 @@ class OperacaoViewSet(ViewSet):
 
     # GET personalizado em /api/operacoes/operacaolist/
     @action(detail=False, methods=['get'], url_path='operacaolist')
-    def list_postos(self, request):
+    def list_operacao(self, request):
         queryset = Operacao.objects.all()
         serializer = OperacaoSerializer(queryset, many=True)
 
@@ -222,7 +311,7 @@ class OperacaoViewSet(ViewSet):
 
     # PUT personalizado em /api/operacoes/operacaoupdate/<id>/
     @action(detail=True, methods=['put'], url_path='operacaoupdate')
-    def update_posto(self, request, pk=None):
+    def update_operacao(self, request, pk=None):
         try:
             instance = Operacao.objects.get(pk=pk)
         except Operacao.DoesNotExist:
@@ -242,18 +331,25 @@ class OperacaoViewSet(ViewSet):
 
     # DELETE personalizado em /api/operacoes/operacaodelete/<id>/
     @action(detail=True, methods=['delete'], url_path='operacaodelete')
-    def delete_posto(self, request, pk=None):
+    def delete_operacao(self, request, pk=None):
         try:
             instance = Operacao.objects.get(pk=pk)
         except Operacao.DoesNotExist:
             return Response(
-                {"error": f"operacao  com ID {pk} não encontrado."},
+                {"error": f"Operação com ID {pk} não encontrada."},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Verifica se a operação está vinculada a alguma máquina
+        if instance.maquina_set.exists():  # Se houver máquinas vinculadas, impede a exclusão
+            return Response(
+                {"error": f"A operação '{instance.nome}' está vinculada a máquinas e não pode ser excluída."},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         instance.delete()
         return Response(
-            {"message": f"operacao com ID {pk} deletado com sucesso."},
+            {"message": f"Operação com ID {pk} excluída com sucesso."},
             status=status.HTTP_200_OK
         )
 
@@ -290,48 +386,44 @@ class AtividadeViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         atividade = serializer.save()
 
-        # Criar entradas no modelo Tempos para cada operação fornecida
+        tempos_data = []
         if "operacoes" in data:
             operacoes_ids = data["operacoes"]
             tempos = data["tempos"]
-            tempos_data =  data["tempos"]
-            id = 0
-            for operacao_id in operacoes_ids:
-                tp_op = tempos[id]
-                try:
-                    operacao = Operacao.objects.get(id=operacao_id)
-                    Tempos.objects.create(atividade=atividade, operacao=operacao, tempo = tp_op)
-                    id = id+1
-                except Operacao.DoesNotExist:
-                    raise ValidationError({"operacoes": f"Operação inválida com ID {operacao_id}."})
-        
-       # Criar DataFrame para o Excel
-        df = pd.DataFrame([{
-           "id": atividade.id,
-                "nome": atividade.nome,
-                "data_hora_inicio": atividade.data_hora_inicio,
-                "data_hora_fim": atividade.data_hora_fim,
-                "observacao": atividade.observacao,
-                "posto_trabalho": atividade.posto_trabalho.nome,
-                "maquina": atividade.maquina.nome,
-                "tempos": tempos_data,
-                "tempo_total": atividade.tempo_total,
+
+            for operacao_id, tempo in zip(operacoes_ids, tempos):
+                operacao = get_object_or_404(Operacao, id=operacao_id)
+                tempo_obj = Tempos.objects.create(atividade=atividade, operacao=operacao, tempo=tempo)
+                tempos_data.append({
+                    "operacao": operacao.nome,
+                    "tempo (segundos)": tempo_obj.tempo,
+                    "classificacao": operacao.classificacao.nome,
+                    "tempo_classificacao": tempo_obj.tempo  # Aqui você pode ajustar caso precise de outra lógica
+                })
+
+        # Criar DataFrame para a aba principal
+        df_atividade = pd.DataFrame([{
+            "id": atividade.id,
+            "nome": atividade.nome,
+            "data_hora_inicio": atividade.data_hora_inicio,
+            "data_hora_fim": atividade.data_hora_fim,
+            "observacao": atividade.observacao,
+            "posto_trabalho": atividade.posto_trabalho.nome,
+            "maquina": atividade.maquina.nome,
+            "tempo_total": atividade.tempo_total,
         }])
 
-        # Criar DataFrame para os tempos das operações
+        # Criar DataFrame para a aba de operações
         df_tempos = pd.DataFrame(tempos_data)
-
-        # Criar diretório se não existir
-        if not os.path.exists(EXCEL_DIR):
-            os.makedirs(EXCEL_DIR)
 
         # Criar o nome do arquivo
         file_path = os.path.join(EXCEL_DIR, f"atividade_{atividade.id}.xlsx")
 
-        # Gerar o arquivo Excel e salvar
-        with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
-            df.to_excel(writer, sheet_name="Atividade", index=False)
-            df_tempos.to_excel(writer, sheet_name="Tempos", index=False)
+        # Criar e salvar o Excel
+        with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
+            df_atividade.to_excel(writer, sheet_name="Atividade", index=False)
+            df_tempos.to_excel(writer, sheet_name="Operações", index=False)
+
 
         return Response(
             {"message": "Atividade criada com sucesso!"},
@@ -343,6 +435,7 @@ class AtividadeViewSet(ModelViewSet):
         data = []
 
         for atividade in queryset:
+           
             tempos_data = [
                 {
                     "operacao": tempo.operacao.nome,

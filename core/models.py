@@ -5,17 +5,23 @@ class PostoTrabalho(models.Model):
     descricao = models.TextField()
     def __str__(self):
         return self.nome
-
-class Maquina(models.Model):
+    
+class Classificacao(models.Model):
     nome = models.CharField(max_length=100)
-    descricao = models.TextField()
     def __str__(self):
         return self.nome
 
 class Operacao(models.Model):
     nome = models.CharField(max_length=100)
     descricao = models.TextField()
-    classificacao = models.CharField(max_length=50)
+    classificacao = models.ForeignKey(Classificacao, on_delete=models.CASCADE)
+    def __str__(self):
+        return self.nome
+
+class Maquina(models.Model):
+    nome = models.CharField(max_length=100)
+    descricao = models.TextField()
+    operacoes = models.ManyToManyField(Operacao, related_name="maquinas")  # Nova relação
     def __str__(self):
         return self.nome
 
