@@ -1,0 +1,1 @@
+{'data_hora_fim': '11/03/2025 14:06', 'data_hora_inicio': '11/03/2025 14:04', 'maquina': 1, 'nome': 'Teste, essa vai Para o e-mail', 'observacao': 'Essa Crono foi realizada pelo app do TI mais brabo do grupo colloni!', 'operacoes': [1, 2, 3], 'posto_trabalho': 1, 'tempo_total': 29, 'tempos': [11, 8, 5]}
